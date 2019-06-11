@@ -4,11 +4,11 @@
 
 module.exports={
   // 项目名称, 必需参数
-  project_name: 'new-customer-service',
+  project_name: 'XXXX',
   // 项目ID, 非必需
-  project_id: 2186,
+  project_id: 1111,
   // 开发者Gitlab Token, 访问Gitlab服务器地址 -> Settings -> Access Tokens -> 生成Personal Access Tokens
-  token: 'oXdf564bxE54EKjci2ds',
+  token: 'XXXXXXXXXXXXX',
   // Gitlab api地址
-  api: 'https://git.afpai.com/api/v4'
+  api: 'https://gitlab.test.com/api/v4'
 }
