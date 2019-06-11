@@ -16,6 +16,8 @@ const readline = require('readline');
 const process = require('process');
 const child_process = require('child_process');
 
+console.log(__dirname);
+
 // Absolute path of config file
 var file = path.resolve('./gitlab_config.js');
 
