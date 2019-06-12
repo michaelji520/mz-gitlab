@@ -16,11 +16,117 @@ const readline = require('readline');
 const process = require('process');
 const child_process = require('child_process');
 
+const initConfig = `
+/**
+ * Gitlab工作流配置文件
+ */
+
+module.exports={
+  // 项目名称, 必需参数
+  project_name: '',
+  // 开发者Gitlab Token, 访问Gitlab服务器地址 -> Settings -> Access Tokens -> 生成Personal Access Tokens
+  token: '',
+  // Gitlab api地址
+  api: ''
+}`;
+
 console.log(__dirname);
 
-// Absolute path of config file
+// 配置文件的绝对路径
 var file = path.resolve('./gitlab_config.js');
 
+
+// 提示并退出程序
+function exit(str = '') {
+  console.log(str);
+  process && process.exit(1);
+}
+
+// 创建初始配置文件
+async function createConfigFile(file, initConfig) {
+  return new Promise(async (resolve, reject) => {
+    const res = await writeConfigToFile(file, initConfig);
+    if (res) {
+      resolve(true);
+    }
+    resolve(false);
+  });
+}
+
+// 检查当前项目目录下是否存在配置文件
+// 如果有, 检测必需参数并返回
+// 否则, 提示用户填写配置信息
+async function checkAndInitConfig() {
+  return new Promise((resolve, reject) => {
+    let config = '';
+    fs.access(file, async (err) => {
+      if (err) {
+        await createConfigFile(file, initConfig);
+        exit('请先填写项目目录下的配置文件:gitlab_config.js');
+      } else {
+        config = require(file);
+        if (!(config.project_name && config.token && config.api)) {
+          exit('请先填写项目目录下的配置文件:gitlab_config.js');
+        }
+      }
+      resolve(config);
+    });
+  });
+}
+
+function getMergeParams() {
+  return new Promise((resolve, reject) => {
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout
+    });
+    let source_branch = '';
+    let target_branch = '';
+    let title = '';
+    let isNecessary = true;
+    rl.setPrompt('请选择源分支: ');
+    rl.prompt();
+    rl.on('line', function (line) {
+      if (line && isNecessary) {
+        if (!source_branch) {
+          source_branch = line;
+          isNecessary = false;
+          rl.setPrompt(`请选择目标分支(${target_branch}): `);
+          rl.prompt();
+        } else if (!target_branch) {
+          target_branch = line || 'dev';
+          let default_title = `merge ${source_branch} into ${target_branch}`;
+          rl.setPrompt(`请设置标题(${default_title}): `);
+          rl.prompt();
+        } else {
+          title = line || default_title;
+          rl.close();
+        }
+      } else {
+        rl.prompt();
+      }
+    }).on('close', () => {
+      resolve({target_branch, source_branch, title});
+    });
+  });
+}
+
+async function launch() {
+  let config = await checkAndInitConfig();
+  if (!(config && config.project_id)) {
+    config.project_id = await getProjectId(config);
+  }
+  let params = process.argv.splice(2);
+  if (!params.length) {
+    exit('请选择您要进行的操作!');
+  }
+  if (params[0] === 'merge') {
+    const merge_params = await getMergeParams();
+    console.log(merge_params);
+  }
+
+}
+launch();
 // Get gitlab params through standard input
 function getInitParams() {
   return new Promise((resolve, reject) => {
@@ -292,7 +398,7 @@ async function execute() {
   }
 }
 
-execute();
+// execute();
 
 const Service = {
   post: async function (message, options) {
