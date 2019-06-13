@@ -16,6 +16,8 @@ const readline = require('readline');
 const process = require('process');
 const child_process = require('child_process');
 
+const help = require('./help.js');
+
 // 配置文件的绝对路径
 const file = path.resolve('./gitlab_config.js');
 
@@ -71,11 +73,11 @@ async function checkAndInitConfig() {
     fs.access(file, async (err) => {
       if (err) {
         await createConfigFile(file, initConfig);
-        exit('\n请先填写项目目录下的配置文件:gitlab_config.js');
+        exit('\n请先填写项目目录下的配置文件: gitlab_config.js');
       } else {
         config = require(file);
         if (!(config.project_name && config.token && config.api)) {
-          exit('\n请先填写项目目录下的配置文件:gitlab_config.js');
+          exit('\n请先填写项目目录下的配置文件: gitlab_config.js');
         }
       }
       resolve(config);
@@ -258,7 +260,7 @@ var gitlab = function ({api = '', token = '', project_id = ''}) {
   }
 }
 
-// 异步请求服务封装
+// 异步请求服务封装, POST
 const Service = {
   post: async function (message, options) {
     return new Promise((resolve, reject) => {
@@ -294,7 +296,7 @@ async function launch() {
   }
   let params = process.argv.splice(2);
   if (!params.length) {
-    exit('请选择您要进行的操作!');
+    exit(help);
   }
   var gl = new gitlab(config);
   if (params[0] === 'merge') {
