@@ -302,7 +302,6 @@ async function launch() {
     gl.createMergeRequest(merge_params);
   } else if (params[0] === 'branch') {
     const branch_params = await getBranchParams();
-    console.log(branch_params);
     gl.createRepositoryBranch(branch_params);
   }
 }
