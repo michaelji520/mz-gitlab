@@ -6,12 +6,13 @@
  */
 
 const help = `
-Usage: npm run gl <command> <options>
+Usage: npm run gl <command>
 
-where <command> is on of:
-    merge_request(mr)
+where <command> is one of:
+    merge: create merge request
+    branch: create branch based on remote branch
 
-eg. npm run gl mr source_branch target_branch title
+eg. npm run merge
 `;
 
 module.exports = help;

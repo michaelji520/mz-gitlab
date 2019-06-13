@@ -16,13 +16,16 @@ const readline = require('readline');
 const process = require('process');
 const child_process = require('child_process');
 
+// 配置文件的绝对路径
+const file = path.resolve('./gitlab_config.js');
+
 const initConfig = `
 /**
  * Gitlab工作流配置文件
  */
 
 module.exports={
-  // 项目名称, 必需参数
+  // 项目名称, 必需参数, eg. helloworld
   project_name: '',
   // 开发者Gitlab Token, 访问Gitlab服务器地址 -> Settings -> Access Tokens -> 生成Personal Access Tokens
   token: '',
@@ -30,16 +33,22 @@ module.exports={
   api: ''
 }`;
 
-console.log(__dirname);
-
-// 配置文件的绝对路径
-var file = path.resolve('./gitlab_config.js');
-
-
 // 提示并退出程序
 function exit(str = '') {
   console.log(str);
   process && process.exit(1);
+}
+
+// 写入内容到指定文件中
+function writeConfigToFile(file, data) {
+  return new Promise((resolve, reject) => {
+    fs.writeFile(file, data, (err) => {
+      if (err) {
+        throw err;
+      }
+      resolve(true);
+    });
+  });
 }
 
 // 创建初始配置文件
@@ -62,11 +71,11 @@ async function checkAndInitConfig() {
     fs.access(file, async (err) => {
       if (err) {
         await createConfigFile(file, initConfig);
-        exit('请先填写项目目录下的配置文件:gitlab_config.js');
+        exit('\n请先填写项目目录下的配置文件:gitlab_config.js');
       } else {
         config = require(file);
         if (!(config.project_name && config.token && config.api)) {
-          exit('请先填写项目目录下的配置文件:gitlab_config.js');
+          exit('\n请先填写项目目录下的配置文件:gitlab_config.js');
         }
       }
       resolve(config);
@@ -74,6 +83,8 @@ async function checkAndInitConfig() {
   });
 }
 
+
+// 获取merge必需参数并返回: 源分支, 目标分支, 标题
 function getMergeParams() {
   return new Promise((resolve, reject) => {
     const rl = readline.createInterface({
@@ -83,25 +94,23 @@ function getMergeParams() {
     let source_branch = '';
     let target_branch = '';
     let title = '';
-    let isNecessary = true;
-    rl.setPrompt('请选择源分支: ');
+    let default_target = 'dev';
+    let default_title = '';
+    rl.setPrompt('\n请输入源分支: ');
     rl.prompt();
     rl.on('line', function (line) {
-      if (line && isNecessary) {
-        if (!source_branch) {
-          source_branch = line;
-          isNecessary = false;
-          rl.setPrompt(`请选择目标分支(${target_branch}): `);
-          rl.prompt();
-        } else if (!target_branch) {
-          target_branch = line || 'dev';
-          let default_title = `merge ${source_branch} into ${target_branch}`;
-          rl.setPrompt(`请设置标题(${default_title}): `);
-          rl.prompt();
-        } else {
-          title = line || default_title;
-          rl.close();
-        }
+      if (!source_branch && line) {
+        source_branch = line;
+        rl.setPrompt(`请选择目标分支(${default_target}): `);
+        rl.prompt();
+      } else if (source_branch && !target_branch) {
+        target_branch = line || default_target;
+        default_title = `merge ${source_branch} into ${target_branch}`;
+        rl.setPrompt(`请设置标题(${default_title}): `);
+        rl.prompt();
+      } else if (target_branch && !title) {
+        title = line || default_title;
+        rl.close();
       } else {
         rl.prompt();
       }
@@ -111,60 +120,36 @@ function getMergeParams() {
   });
 }
 
-async function launch() {
-  let config = await checkAndInitConfig();
-  if (!(config && config.project_id)) {
-    config.project_id = await getProjectId(config);
-  }
-  let params = process.argv.splice(2);
-  if (!params.length) {
-    exit('请选择您要进行的操作!');
-  }
-  if (params[0] === 'merge') {
-    const merge_params = await getMergeParams();
-    console.log(merge_params);
-  }
-
-}
-launch();
-// Get gitlab params through standard input
-function getInitParams() {
+// 获取创建分支所需参数: 新分支名, 源分支
+function getBranchParams() {
   return new Promise((resolve, reject) => {
     const rl = readline.createInterface({
       input: process.stdin,
       output: process.stdout
     });
-    console.log('It seems you haven\'t set gitlab token yet.');
-    console.log('You need to initialize it first:');
-    let token = '';
-    let api = '';
-    let project_name = '';
-    rl.setPrompt('Project name: ');
+    let branch = '';
+    let ref = '';
+    let default_ref = 'dev';
+    rl.setPrompt(`\n请输入源分支(${default_ref}): `);
     rl.prompt();
     rl.on('line', function (line) {
-      if (line) {
-        if (!project_name) {
-          project_name = line;
-          rl.setPrompt('Your personal access token: ');
-          rl.prompt();
-        } else if (!token) {
-          token = line;
-          rl.setPrompt('Gitlab server address: ');
-          rl.prompt();
-        } else {
-          api = line;
-          rl.close();
-        }
+      if (!ref) {
+        ref = line || default_ref;
+        rl.setPrompt(`请输入新分支名: `);
+        rl.prompt();
+      } else if (!branch && line) {
+        branch = line;
+        rl.close();
       } else {
         rl.prompt();
       }
     }).on('close', () => {
-      resolve({token, api, project_name});
+      resolve({ref, branch});
     });
   });
 }
 
-// Get project id by name, token, api
+// 根据项目名称, token, api获取项目ID
 function getProjectId({api, token, project_name}) {
   return new Promise((resolve, reject) => {
     https.get(`${api}/projects?private_token=${token}&search=${project_name}`, (res) => {
@@ -192,112 +177,29 @@ function getProjectId({api, token, project_name}) {
   });
 }
 
-// Write token to config file
-function writeConfigToFile(file, data) {
-  return new Promise((resolve, reject) => {
-    fs.writeFile(file, data, (err) => {
-      if (err) {
-        throw err;
-      }
-      resolve(true);
-    });
-  });
-}
-
-async function generateConfigFile(file) {
-  return new Promise(async (resolve, reject) => {
-    let {token, api, project_name} = await getInitParams();
-    console.log(api, token, project_name);
-    console.log('Obtaining project id...');
-    let project_id = await getProjectId({api, token, project_name});
-    const data = `module.exports={
-      project_name: \'${project_name}\',
-      project_id: ${project_id},
-      token: \'${token}\',
-      api: \'${api}\'
-    }`;
-    console.log('Generating config file...');
-    const res = await writeConfigToFile(file, data);
-    if (res) {
-      resolve({status: 0, config: {token, api, project_id, project_name}});
-    }
-    resolve({status: -1});
-  });
-}
-
-// Check if config file exist, create one for user if not
-async function checkConfigFile(file) {
-  return new Promise(async (resolve, reject) => {
-    var config = '';
-    fs.access(file, async (err) => {
-      if (err) {
-        let result = await generateConfigFile(file);
-        if (result.status === 0) {
-          config = result.config;
-        }
-      } else {
-        config = require(file);
-      }
-      resolve(config);
-    });
-  });
-}
-
 var gitlab = function ({api = '', token = '', project_id = ''}) {
   // private
   var api = api || '';
   var private_token = token || '';
   var project_id = project_id || '';
 
-  // check auth params
+  // 检查配置信息
   function checkInitParams() {
     return api && private_token && project_id;
   }
 
   // public
-  // Get MR list
-  this.getMergeRequests = function (params, query) {
+  // 创建 Merge Request
+  this.createMergeRequest = async function (params) {
     if (!checkInitParams()) {
       return false;
     }
-    var request_url = `${api}`;
-    if (params) {
-      request_url += params.project_id ? `/projects/${params.project_id}` : '';
-      request_url += params.group_id ? `/groups/${params.group_id}` : '';
-    }
-    request_url += `/merge_requests?private_token=${private_token}`;
-    if (query && (typeof query === 'object')) {
-      for (var i in query) {
-        request_url += `&${i}=${query[i]}`;
-      }
-    }
-    https.get(request_url, (res) => {
-      var result = [];
-      var size = 0;
-      res.on('data', (chunk) => {
-        result.push(chunk);
-        size += chunk.length;
-      })
-      res.on('end', () => {
-        var buff = Buffer.concat(result, size);
-        console.log(buff.toString());
-      });
-    }).on('error', (e) => {
-      console.error(e);
-    });
-  }
-
-  // Create MR
-  this.createMergeRequest = function (params) {
-    if (!checkInitParams()) {
-      return false;
-    }
-    if (!(params && params.project_id && params.source_branch && params.target_branch && params.title)) {
+    if (!(params && params.source_branch && params.target_branch && params.title)) {
       console.log('Missing required parameters, please check your input.');
       return false;
     }
     let message = JSON.stringify({
-      id: params.project_id,
+      id: project_id,
       source_branch: params.source_branch,
       target_branch: params.target_branch,
       title: params.title,
@@ -307,44 +209,25 @@ var gitlab = function ({api = '', token = '', project_id = ''}) {
     let options = {
       hostname: request_url.hostname,
       port: params.port || 443,
-      path: `${request_url.path}/projects/${params.project_id}/merge_requests`,
+      path: `${request_url.path}/projects/${project_id}/merge_requests`,
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Content-Length': Buffer.byteLength(message)
       }
     };
-
-    const req = https.request(options, (res) => {
-      var result = [];
-      var size = 0;
-      res.on('data', (chunk) => {
-        result += chunk;
-      })
-      res.on('end', () => {
-        if (result) {
-          result = JSON.parse(result);
-          if (result.message) {
-            console.log(result.message);
-          } else {
-            console.log(`Request to merge ${result.source_branch} into ${result.target_branch} has been created!`);
-            console.log(`Web url: ${result.web_url}`);
-          }
-        }
-        process.exit(0);
-      });
-      res.on('error', (e) => {
-        console.log(e);
-        process.exit(0);
-      });
-    });
-    req.on('error', (e) => {
-      console.log(e);
-      process.exit(0);
-    });
-    req.write(message);
-    req.end();
+    const result = await Service.post(message, options);
+    console.log('');
+    if (result.message) {
+      console.log(result.message);
+    } else {
+      console.log(`Request to merge ${result.source_branch} into ${result.target_branch} has been created!`);
+      console.log(`Web url: ${result.web_url}`);
+    }
+    process.exit(0);
   }
+
+  // 创建新分支
   this.createRepositoryBranch = async function (params) {
     if (!(params.branch && params.ref && checkInitParams())) {
       console.log('Missing required parameters, please check your input.');
@@ -354,7 +237,6 @@ var gitlab = function ({api = '', token = '', project_id = ''}) {
       id: project_id,
       private_token: private_token
     }));
-    console.log(message);
     let request_url = url.parse(api);
     let options = {
       hostname: request_url.hostname,
@@ -366,40 +248,17 @@ var gitlab = function ({api = '', token = '', project_id = ''}) {
         'Content-Length': Buffer.byteLength(message)
       }
     };
-    await Service.post(message, options);
-    child_process.execSync('git fetch');
-    child_process.execSync(`git checkout ${params.branch}`);
+    const result = await Service.post(message, options);
+    console.log(result);
+    if (result && result.id) {
+      child_process.execSync('git fetch');
+      child_process.execSync(`git checkout ${params.branch}`);
+    }
+    process.exit(0);
   }
 }
 
-async function execute() {
-  const config = await checkConfigFile(file);
-  if (config) {
-    var gl = new gitlab(config);
-    var params = process.argv.splice(2);
-    if (!(params && params.length)) {
-      console.log('Missing required parameters!');
-      console.log(require('./help.js'));
-      process.exit(0);
-    }
-    if (params[0] === 'merge_request' || params[0] === 'mr') {
-      gl.createMergeRequest({
-        project_id: config.project_id,
-        source_branch: params[1],
-        target_branch: params[2],
-        title: params[3]
-      });
-    } else if (params[0] === 'create_branch' || params[0] === 'cb') {
-      gl.createRepositoryBranch({
-        branch: params[1],
-        ref: params[2]
-      });
-    }
-  }
-}
-
-// execute();
-
+// 异步请求服务封装
 const Service = {
   post: async function (message, options) {
     return new Promise((resolve, reject) => {
@@ -412,19 +271,40 @@ const Service = {
         res.on('end', () => {
           if (result) {
             result = JSON.parse(result);
-            console.log(result);
             resolve(result);
           }
         });
         res.on('error', (e) => {
-          console.log(e);
+          reject(e);
         });
       });
       req.on('error', (e) => {
-        console.log(e);
+        reject(e);
       });
       req.write(message);
       req.end();
     });
   }
 };
+
+async function launch() {
+  let config = await checkAndInitConfig();
+  if (!(config && config.project_id)) {
+    config.project_id = await getProjectId(config);
+  }
+  let params = process.argv.splice(2);
+  if (!params.length) {
+    exit('请选择您要进行的操作!');
+  }
+  var gl = new gitlab(config);
+  if (params[0] === 'merge') {
+    const merge_params = await getMergeParams();
+    gl.createMergeRequest(merge_params);
+  } else if (params[0] === 'branch') {
+    const branch_params = await getBranchParams();
+    console.log(branch_params);
+    gl.createRepositoryBranch(branch_params);
+  }
+}
+
+launch();
