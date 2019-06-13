@@ -251,7 +251,7 @@ var gitlab = function ({api = '', token = '', project_id = ''}) {
     const result = await Service.post(message, options);
     if (result && result.name) {
       console.log('\n正在拉取远程分支到本地...');
-      child_process.execSync('git fetch');
+      child_process.execSync(`git fetch origin ${params.branch}`);
       child_process.execSync(`git checkout ${params.branch}`);
     }
     process.exit(0);
