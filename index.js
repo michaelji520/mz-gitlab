@@ -21,6 +21,8 @@ const help = require('./help.js');
 // 配置文件的绝对路径
 const file = path.resolve('./gitlab_config.js');
 
+const git_ignore = path.resolve('./.gitignore');
+
 const initConfig = `
 /**
  * Gitlab工作流配置文件
@@ -34,6 +36,15 @@ module.exports={
   // Gitlab api地址
   api: ''
 }`;
+
+function addConfigToGitIgnore(git_ignore) {
+  return new Promise((resolve, reject) => {
+    fs && fs.appendFile(git_ignore, 'gitlab_config.js', (err) => {
+      if (err) throw err;
+      resolve(true);
+    });
+  });
+}
 
 // 提示并退出程序
 function exit(str = '') {
@@ -73,6 +84,7 @@ async function checkAndInitConfig() {
     fs.access(file, async (err) => {
       if (err) {
         await createConfigFile(file, initConfig);
+        await addConfigToGitIgnore(git_ignore);
         exit('\n请先填写项目目录下的配置文件: gitlab_config.js');
       } else {
         config = require(file);
