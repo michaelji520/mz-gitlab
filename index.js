@@ -250,7 +250,7 @@ var gitlab = function ({api = '', token = '', project_id = ''}) {
     };
     const result = await Service.post(message, options);
     console.log(result);
-    if (result && result.id) {
+    if (result && result.name) {
       child_process.execSync('git fetch');
       child_process.execSync(`git checkout ${params.branch}`);
     }
