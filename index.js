@@ -11,6 +11,8 @@ const child_process = require('child_process');
 
 const help = require('./help.js');
 
+var webhook_address = '';
+
 // 配置文件的绝对路径
 const file = path.resolve('./gitlab_config.js');
 
@@ -234,7 +236,6 @@ var gitlab = function ({api = '', token = '', project_id = '', project_name = ''
     } else {
       console.log(`Request to merge ${result.source_branch} into ${result.target_branch} has been created!`);
       console.log(`Web url: ${result.web_url}`);
-      const webhook_address = 'https://oapi.dingtalk.com/robot/send?access_token=a5b1775b56e23304b188f672da9790f310cd97247ecb1010591a3c930f526fe2';
       if (webhook_address) {
         let data = {
           'msgtype': 'markdown',
@@ -339,6 +340,7 @@ function sendWebhookMessage(address, data) {
 
 async function launch() {
   let config = await checkAndInitConfig();
+  webhook_address = (config && config.webhook) || '';
   if (!(config && config.project_id)) {
     config.project_id = await getProjectId(config);
   }
