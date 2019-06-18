@@ -1,12 +1,5 @@
 #!/usr/bin/env node
 
-/**
- * Copyright (c) 2014-2019 NighthawkStudio, All rights reserved.
- * @fileoverview
- * @author Michael Zhang | michaelji520@gmail.com
- * @version 1.0 | 2019-05-27 | initial version
- */
-
 // required modules
 const https = require('https');
 const path = require('path');
@@ -33,10 +26,13 @@ module.exports={
   project_name: '',
   // 开发者Gitlab Token, 访问Gitlab服务器地址 -> Settings -> Access Tokens -> 生成Personal Access Tokens
   token: '',
-  // Gitlab api地址
-  api: ''
+  // Gitlab api地址, eg. https://gitlab.xxx.com/api/v4
+  api: '',
+  // Webhook地址, 请输入钉钉自定义机器人的webhook地址
+  webhook: ''
 }`;
 
+// 将配置文件添加到Git版本库忽略文件中
 function addConfigToGitIgnore(git_ignore) {
   return new Promise((resolve, reject) => {
     fs && fs.appendFile(git_ignore, 'gitlab_config.js', (err) => {
@@ -49,7 +45,7 @@ function addConfigToGitIgnore(git_ignore) {
 // 提示并退出程序
 function exit(str = '') {
   console.log(str);
-  process && process.exit(1);
+  process && process.exit(0);
 }
 
 // 写入内容到指定文件中
@@ -191,11 +187,12 @@ function getProjectId({api, token, project_name}) {
   });
 }
 
-var gitlab = function ({api = '', token = '', project_id = ''}) {
+var gitlab = function ({api = '', token = '', project_id = '', project_name = ''}) {
   // private
   var api = api || '';
   var private_token = token || '';
   var project_id = project_id || '';
+  var project_name = project_name || '';
 
   // 检查配置信息
   function checkInitParams() {
@@ -237,6 +234,19 @@ var gitlab = function ({api = '', token = '', project_id = ''}) {
     } else {
       console.log(`Request to merge ${result.source_branch} into ${result.target_branch} has been created!`);
       console.log(`Web url: ${result.web_url}`);
+      const webhook_address = 'https://oapi.dingtalk.com/robot/send?access_token=a5b1775b56e23304b188f672da9790f310cd97247ecb1010591a3c930f526fe2';
+      if (webhook_address) {
+        let data = {
+          'msgtype': 'markdown',
+          'markdown': {
+              'title': `new merge request from ${result.source_branch} to ${result.target_branch}`,
+              'text': `#### new merge request from ${result.source_branch} to ${result.target_branch} \n` +
+                      `> Repository: ${project_name} \n\n` +
+                      `> [${params.title}](${result.web_url}) \n`
+          }
+        };
+        await sendWebhookMessage(webhook_address, data);
+      }
     }
     process.exit(0);
   }
@@ -301,6 +311,32 @@ const Service = {
   }
 };
 
+function sendWebhookMessage(address, data) {
+  return new Promise(async (resolve, reject) => {
+    let message = JSON.stringify(data);
+    let request_url = url.parse(address);
+    let options = {
+      hostname: request_url.hostname,
+      port: 443,
+      path: address,
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(message)
+      }
+    };
+    const res = await Service.post(message, options);
+    if (res.errcode === 0) {
+      console.log('钉钉消息发送成功!');
+      resolve(true);
+    } else {
+      console.log(res);
+      resolve(false);
+    }
+  });
+}
+
+
 async function launch() {
   let config = await checkAndInitConfig();
   if (!(config && config.project_id)) {
@@ -321,3 +357,4 @@ async function launch() {
 }
 
 launch();
+
