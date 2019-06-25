@@ -95,7 +95,6 @@ async function checkAndInitConfig() {
   });
 }
 
-
 // 获取merge必需参数并返回: 源分支, 目标分支, 标题
 function getMergeParams() {
   return new Promise((resolve, reject) => {
@@ -189,12 +188,14 @@ function getProjectId({api, token, project_name}) {
   });
 }
 
-var gitlab = function ({api = '', token = '', project_id = '', project_name = ''}) {
+var gitlab = function ({api = '', token = '', project_id = '', project_name = '', user_name = '', user_id = ''}) {
   // private
   var api = api || '';
   var private_token = token || '';
   var project_id = project_id || '';
   var project_name = project_name || '';
+  var username = user_name || '';
+  var user_id = user_id || '';
 
   // 检查配置信息
   function checkInitParams() {
@@ -230,7 +231,6 @@ var gitlab = function ({api = '', token = '', project_id = '', project_name = ''
       }
     };
     const result = await Service.post(message, options);
-    console.log('');
     if (result.message) {
       console.log(result.message);
     } else {
@@ -240,10 +240,11 @@ var gitlab = function ({api = '', token = '', project_id = '', project_name = ''
         let data = {
           'msgtype': 'markdown',
           'markdown': {
-              'title': `new merge request from ${result.source_branch} to ${result.target_branch}`,
-              'text': `#### new merge request from ${result.source_branch} to ${result.target_branch} \n` +
+              'title': `${username} open the merge request from ${result.source_branch} to ${result.target_branch}`,
+              'text': `#### ${username} open the merge request from ${result.source_branch} to ${result.target_branch} \n` +
                       `> Repository: ${project_name} \n\n` +
-                      `> [${params.title}](${result.web_url}) \n`
+                      `> Status: ${result.state} \n\n` +
+                      `> Title: [${params.title}](${result.web_url}) \n`
           }
         };
         await sendWebhookMessage(webhook_address, data);
@@ -275,7 +276,7 @@ var gitlab = function ({api = '', token = '', project_id = '', project_name = ''
     };
     const result = await Service.post(message, options);
     if (result && result.name) {
-      console.log('\n正在拉取远程分支到本地...');
+      console.log('\nFetching remote branch to local...');
       child_process.execSync(`git fetch origin ${params.branch}`);
       child_process.execSync(`git checkout ${params.branch}`);
     }
@@ -285,6 +286,21 @@ var gitlab = function ({api = '', token = '', project_id = '', project_name = ''
 
 // 异步请求服务封装, POST
 const Service = {
+  get: async function (url) {
+    return new Promise((resolve, reject) => {
+      https.get(url, (res) => {
+        var result = '';
+        res.on('data', (chunk) => {
+          result += chunk;
+        })
+        res.on('end', () => {
+          resolve(JSON.parse(result.toString()));
+        });
+      }).on('error', (e) => {
+        reject(e);
+      });
+    });
+  },
   post: async function (message, options) {
     return new Promise((resolve, reject) => {
       const req = https.request(options, (res) => {
@@ -341,9 +357,23 @@ function sendWebhookMessage(address, data) {
 async function launch() {
   let config = await checkAndInitConfig();
   webhook_address = (config && config.webhook) || '';
+  let has_new_config = false;
   if (!(config && config.project_id)) {
+    console.log('Obtaining project id...\n');
     config.project_id = await getProjectId(config);
   }
+  if (!(config && config.user_id)) {
+    console.log('Obtaining user id...\n');
+    const user_req = `${config.api}/user?private_token=${config.token}`;
+    const user = await Service.get(user_req);
+    config.user_id = user.id || '';
+    config.user_name = user.username || '';
+  }
+  if (has_new_config) {
+    console.log('Saving new config...');
+    const write_res = await writeConfigToFile(file, `module.exports=${JSON.stringify(config)}`);
+  }
+
   let params = process.argv.splice(2);
   if (!params.length) {
     exit(help);
