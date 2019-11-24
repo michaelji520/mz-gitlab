@@ -1,6 +1,6 @@
 {
   "name": "mz-gitlab",
-  "version": "1.0.31",
+  "version": "1.0.32",
   "description": "integrate merge ability of gitlab",
   "main": "index.js",
   "scripts": {
