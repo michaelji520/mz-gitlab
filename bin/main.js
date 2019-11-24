@@ -33,6 +33,9 @@ async function execGitlabCommand(context) {
       spinner.start();
       try {
         const result = await gitlab.createMergeRequest(params);
+        if (!result) {
+          throw new Error('Failed to create merge request.');
+        }
         spinner.succeed('Merge request sent!');
         if (context.webhook) {
           const { state, web_url, author } = result;
