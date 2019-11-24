@@ -76,9 +76,12 @@ async function initProjectConfig(config_file) {
   if (fs.existsSync(target)) {
     config = require(target);
   } else {
+    const spinner = ora('Querying project id...');
+    spinner.start();
     let project = await inquirer.prompt(require('../config/project-options'));
+    spinner.succeed('Get project id successfully!')
     project.project_id = await queryProjectId(project);
-    const spinner = ora(`Writing project config to local file: ${config_file}`);
+    spinner = ora(`Writing project config to local file: ${config_file}`);
     fs.writeFileSync(target, 'module.exports = ' + util.inspect(project, { depth: null }), 'utf-8');
     toolset.addFile2GitIgnore(config_file);
     spinner.succeed(`Project config has been saved to ${target}.`)
@@ -95,15 +98,13 @@ async function initProjectConfig(config_file) {
 async function queryProjectId(context) {
   const {api, token, project_name} = context;
   let project_id = '';
-  const spinner = ora('Querying project id...');
-  spinner.start();
   const response = await axios.get(`${api}/projects?private_token=${token}&search=${project_name}`)
   const projects = response.data;
   if (projects.length > 1) {
     let option = {
       type: 'list',
       name: 'project_id',
-      message: '请选择您的项目:',
+      message: 'Choose your project:',
       choices: projects.map((i) => {
         return {
           name: `${i.name_with_namespace}`,
@@ -118,6 +119,5 @@ async function queryProjectId(context) {
   } else if (projects.length === 1) {
     project_id = projects[0].id;
   }
-  spinner.succeed('获取项目ID成功!')
   return project_id;
 }

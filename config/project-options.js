@@ -2,7 +2,7 @@ module.exports = [
   {
     type: 'input',
     name: 'project_name',
-    message: '请输入项目名称:',
+    message: 'Input name of gitlab repository:',
     validate: function (val) {
       return !!(val.trim());
     },
@@ -13,7 +13,7 @@ module.exports = [
   {
     type: 'input',
     name: 'token',
-    message: '请输入用户私钥:',
+    message: 'Input your private token of gitlab:',
     validate: function (val) {
       return !!(val.trim());
     },
@@ -24,13 +24,13 @@ module.exports = [
   {
     type: 'input',
     name: 'api',
-    message: '请输入Gitlab Api地址:',
+    message: 'Input gitlab api address:',
     default: 'https://git.afpai.com/api/v4',
   },
   {
     type: 'input',
     name: 'webhook',
-    message: '请输入钉钉消息通知Webhook地址:',
+    message: 'Input webhook address of Dingding:',
     default: '',
   }
 ];

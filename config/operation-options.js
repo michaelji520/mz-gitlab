@@ -3,7 +3,7 @@ module.exports = {
     {
       type: 'list',
       name: 'operation',
-      message: '请选择您要进行的操作:',
+      message: 'Choose your operation:',
       choices: [
         {
           name: 'launch merge request',
@@ -20,7 +20,7 @@ module.exports = {
     {
       type: 'input',
       name: 'source_branch',
-      message: '请输入源分支:',
+      message: 'Input source branch:',
       validate: function (val) {
         return !!(val.trim());
       },
@@ -31,7 +31,7 @@ module.exports = {
     {
       type: 'input',
       name: 'target_branch',
-      message: '请输入目标分支:',
+      message: 'Input target branch:',
       validate: function (val) {
         return !!(val.trim());
       },
@@ -42,7 +42,7 @@ module.exports = {
     {
       type: 'input',
       name: 'title',
-      message: '请输入标题:',
+      message: 'Input title of merge request:',
       validate: function (val) {
         return !!(val.trim());
       },
@@ -56,7 +56,7 @@ module.exports = {
     {
       type: 'input',
       name: 'ref',
-      message: '请输入源分支:',
+      message: 'Input reference branch:',
       validate: function (val) {
         return !!(val.trim());
       },
@@ -67,7 +67,7 @@ module.exports = {
     {
       type: 'input',
       name: 'branch',
-      message: '请输入新分支名:',
+      message: 'Input new branch name:',
       validate: function (val) {
         return !!(val.trim());
       },
