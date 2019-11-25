@@ -79,12 +79,12 @@ async function initProjectConfig(config_file) {
   if (fs.existsSync(target)) {
     config = require(target);
   } else {
-    const spinner = ora('Querying project id...');
-    spinner.start();
     let project = await inquirer.prompt(require('../config/project-options'));
-    spinner.succeed('Get project id successfully!')
 
+    let spinner = ora('Querying project id...');
+    spinner.start();
     project.project_id = await queryProjectId(project);
+    spinner.succeed('Get project id successfully!')
     spinner = ora(`Writing project config to local file: ${config_file}`);
     fs.writeFileSync(target, 'module.exports = ' + util.inspect(project, { depth: null }), 'utf-8');
     toolset.addFile2GitIgnore(config_file);
