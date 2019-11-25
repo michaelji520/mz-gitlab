@@ -42,7 +42,7 @@ async function execGitlabCommand(context) {
           let data = {
             'msgtype': 'markdown',
             'markdown': {
-                'title': `${author.username} open the merge request from ${params.source_branch} to ${params.target_branch}`,
+                'title': `Gitlab: ${author.username} open the merge request from ${params.source_branch} to ${params.target_branch}`,
                 'text': `#### ${author.username} open the merge request from ${params.source_branch} to ${params.target_branch} \n` +
                         `> Repository: ${context.project_name} \n\n` +
                         `> Status: ${state} \n\n` +
