@@ -83,6 +83,7 @@ async function initProjectConfig(config_file) {
     spinner.start();
     let project = await inquirer.prompt(require('../config/project-options'));
     spinner.succeed('Get project id successfully!')
+
     project.project_id = await queryProjectId(project);
     spinner = ora(`Writing project config to local file: ${config_file}`);
     fs.writeFileSync(target, 'module.exports = ' + util.inspect(project, { depth: null }), 'utf-8');
