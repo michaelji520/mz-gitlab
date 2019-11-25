@@ -49,7 +49,7 @@ async function execGitlabCommand(context) {
                         `> Title: [${params.title}](${web_url}) \n`
             }
           };
-          await util.sendWebhookMessage(context.webhook, data);
+          await toolset.sendWebhookMessage(context.webhook, data);
         }
       } catch(err) {
         console.log(err);
